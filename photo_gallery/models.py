@@ -65,3 +65,33 @@ class PhotoGallery(models.Model):
         if self.image:
             return self.image.url
         return None
+
+    @property
+    def likes_count(self):
+        """Count total likes for this photo"""
+        return self.likes.count()
+
+    def is_liked_by(self, user):
+        """Check if a specific user has liked this photo"""
+        if not user or not user.is_authenticated:
+            return False
+        return self.likes.filter(user=user).exists()
+
+
+class PhotoLike(models.Model):
+    """
+    Model to store likes/upvotes on photos.
+    Each user can like a photo only once.
+    """
+    photo = models.ForeignKey(PhotoGallery, on_delete=models.CASCADE, related_name='likes')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='photo_likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('photo', 'user')
+        ordering = ['-created_at']
+        verbose_name = 'Photo Like'
+        verbose_name_plural = 'Photo Likes'
+
+    def __str__(self):
+        return f"{self.user.username} liked {self.photo.id}"

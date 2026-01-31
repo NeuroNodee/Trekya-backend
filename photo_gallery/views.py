@@ -2,8 +2,9 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .models import PhotoGallery
-from .serializers import PhotoGallerySerializer
+from django.db.models import Count, Q
+from .models import PhotoGallery, PhotoLike
+from .serializers import PhotoGallerySerializer, PhotoLikeSerializer
 
 
 class PhotoGalleryViewSet(viewsets.ModelViewSet):
@@ -75,15 +76,36 @@ class PhotoGalleryViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response({'status':'success','count':queryset.count(),'data':serializer.data})
 
+    @action(detail=True, methods=['post'])
+    def like(self, request, pk=None):
+        """
+        POST /api/photos/{id}/like/
+        Like/unlike a photo (toggle)
+        """
+        photo = self.get_object()
+        user = request.user
+        
+        try:
+            like = PhotoLike.objects.get(photo=photo, user=user)
+            like.delete()
+            return Response({'status': 'success', 'message': 'Photo unliked', 'is_liked': False, 'likes_count': photo.likes_count})
+        except PhotoLike.DoesNotExist:
+            PhotoLike.objects.create(photo=photo, user=user)
+            return Response({'status': 'success', 'message': 'Photo liked', 'is_liked': True, 'likes_count': photo.likes_count})
+
 
 class PublicPhotoViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for viewing public photos.
     Allows anyone to view photos from all users that are marked as public (is_public=True).
+    Popular endpoint sorts by likes count.
     """
-    queryset = PhotoGallery.objects.filter(is_public=True).select_related('user').order_by('-uploaded_at')
     serializer_class = PhotoGallerySerializer
     permission_classes = [AllowAny]  # Anyone can view
+    
+    def get_queryset(self):
+        """Filter for public photos"""
+        return PhotoGallery.objects.filter(is_public=True).select_related('user').prefetch_related('likes')
 
     @action(detail=False, methods=['get'])
     def by_location(self, request):
@@ -130,10 +152,13 @@ class PublicPhotoViewSet(viewsets.ReadOnlyModelViewSet):
     def popular(self, request):
         """
         GET /api/photos/public/popular/
-        Returns all public photos (can be used for popular/recent posts).
+        Returns all public photos sorted by likes (most popular first).
         Supports pagination with page and limit query params.
         """
-        queryset = self.get_queryset()
+        # Sort by likes count (descending), then by upload date
+        queryset = self.get_queryset().annotate(
+            like_count=Count('likes')
+        ).order_by('-like_count', '-uploaded_at')
         
         # Pagination support
         page = request.query_params.get('page', 1)

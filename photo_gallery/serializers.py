@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import PhotoGallery
+from .models import PhotoGallery, PhotoLike
 
 class PhotoGallerySerializer(serializers.ModelSerializer):
     """
@@ -12,10 +12,13 @@ class PhotoGallerySerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source='user.email', read_only=True)
     uploaded_by = serializers.CharField(source='user.username', read_only=True)
     image_url = serializers.SerializerMethodField()
+    likes_count = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
+    
     class Meta:
         model = PhotoGallery
-        fields = ['id', 'user_email', 'uploaded_by', 'image', 'image_url', 'location', 'title', 'description', 'is_public', 'uploaded_at']
-        read_only_fields = ['id', 'user_email', 'uploaded_by', 'uploaded_at']
+        fields = ['id', 'user_email', 'uploaded_by', 'image', 'image_url', 'location', 'title', 'description', 'is_public', 'likes_count', 'is_liked', 'uploaded_at']
+        read_only_fields = ['id', 'user_email', 'uploaded_by', 'likes_count', 'is_liked', 'uploaded_at']
 
     def get_image_url(self, obj):
         """
@@ -27,6 +30,17 @@ class PhotoGallerySerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.image.url)
         return obj.image.url if obj.image else None
 
+    def get_likes_count(self, obj):
+        """Get total likes count for this photo"""
+        return obj.likes_count
+
+    def get_is_liked(self, obj):
+        """Check if current user has liked this photo"""
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            return obj.is_liked_by(request.user)
+        return False
+
     def validate_image(self, value):
         """
         Validate image file size (max 5MB)
@@ -35,6 +49,14 @@ class PhotoGallerySerializer(serializers.ModelSerializer):
         if value.size > max_size:
             raise serializers.ValidationError("Image size must not exceed 5MB.")
         return value
+
+
+class PhotoLikeSerializer(serializers.ModelSerializer):
+    """Serializer for PhotoLike model"""
+    class Meta:
+        model = PhotoLike
+        fields = ['id', 'photo', 'user', 'created_at']
+        read_only_fields = ['id', 'user', 'created_at']
 
 
 class PhotoGalleryGroupedSerializer(serializers.Serializer):
