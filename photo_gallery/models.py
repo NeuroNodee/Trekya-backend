@@ -47,6 +47,7 @@ class PhotoGallery(models.Model):
     location = models.CharField(max_length=50, choices=LOCATION_CHOICES, default='Other')
     title = models.CharField(max_length=200, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
+    is_public = models.BooleanField(default=True, help_text="If True, photo is visible to all users. If False, only you can see it.")
 
     uploaded_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
