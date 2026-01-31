@@ -11,16 +11,14 @@ class PhotoGallerySerializer(serializers.ModelSerializer):
     #read only field to show user email instead of ID
     user_email = serializers.CharField(source='user.email', read_only=True)
     uploaded_by = serializers.SerializerMethodField()
-    user_first_name = serializers.CharField(source='user.first_name', read_only=True)
-    user_last_name = serializers.CharField(source='user.last_name', read_only=True)
     image_url = serializers.SerializerMethodField()
     likes_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
     
     class Meta:
         model = PhotoGallery
-        fields = ['id', 'user_email', 'uploaded_by', 'user_first_name', 'user_last_name', 'image', 'image_url', 'location', 'title', 'description', 'is_public', 'likes_count', 'is_liked', 'uploaded_at']
-        read_only_fields = ['id', 'user_email', 'uploaded_by', 'user_first_name', 'user_last_name', 'likes_count', 'is_liked', 'uploaded_at']
+        fields = ['id', 'user_email', 'uploaded_by', 'image', 'image_url', 'location', 'title', 'description', 'is_public', 'likes_count', 'is_liked', 'uploaded_at']
+        read_only_fields = ['id', 'user_email', 'uploaded_by', 'likes_count', 'is_liked', 'uploaded_at']
 
     def get_uploaded_by(self, obj):
         """Get uploader's full name or email"""
