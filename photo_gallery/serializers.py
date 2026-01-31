@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import PhotoGallery, PhotoLike
+from .models import PhotoGallery, PhotoLike, FavoriteLocation
 
 class PhotoGallerySerializer(serializers.ModelSerializer):
     """
@@ -66,3 +66,14 @@ class PhotoGalleryGroupedSerializer(serializers.Serializer):
 
     def get_count(self, obj):
         return len(obj['photos'])
+
+class FavoriteLocationSerializer(serializers.ModelSerializer):
+    """
+    Serializer for FavoriteLocation model - tracks user's favorite destinations
+    """
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    
+    class Meta:
+        model = FavoriteLocation
+        fields = ['id', 'user_email', 'location', 'created_at']
+        read_only_fields = ['id', 'user_email', 'created_at']

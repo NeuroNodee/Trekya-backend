@@ -95,3 +95,47 @@ class PhotoLike(models.Model):
 
     def __str__(self):
         return f"{self.user.username} liked {self.photo.id}"
+
+class FavoriteLocation(models.Model):
+    """
+    Model to track user's favorite travel destinations (locations).
+    """
+    LOCATION_CHOICES = (
+        ('Kathmandu', 'Kathmandu'),
+        ('Pokhara', 'Pokhara'),
+        ('Janaki', 'Janaki'),
+        ('Lumbini', 'Lumbini'),
+        ('Bhaktapur', 'Bhaktapur'),
+        ('Dhaulagiri', 'Dhaulagiri'),
+        ('Gaurishankar', 'Gaurishankar'),
+        ('Annapurna', 'Annapurna'),
+        ('EverestRegion', 'Everest Region'),
+        ('LangtangNationalPark', 'Langtang National Park'),
+        ('Ghorepani', 'Ghorepani'),
+        ('Ghandruk', 'Ghandruk'),
+        ('GosaikundaLake', 'Gosaikunda Lake'),
+        ('Machhapuchhre', 'Machhapuchhre'),
+        ('Khaptad', 'Khaptad'),
+        ('KoshiTappu', 'Koshi Tappu'),
+        ('Rara', 'Rara'),
+        ('Shey', 'Shey'),
+        ('SheyLake', 'Shey Lake'),
+        ('Bardia', 'Bardia'),
+        ('Dharan', 'Dharan'),
+        ('Illam', 'Illam'),
+        ('Lalitpur', 'Lalitpur'),
+        ('Other', 'Other'),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favorite_locations')
+    location = models.CharField(max_length=50, choices=LOCATION_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'location')
+        ordering = ['-created_at']
+        verbose_name = 'Favorite Location'
+        verbose_name_plural = 'Favorite Locations'
+
+    def __str__(self):
+        return f"{self.user.email} - {self.location}"

@@ -3,8 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Count, Q
-from .models import PhotoGallery, PhotoLike
-from .serializers import PhotoGallerySerializer, PhotoLikeSerializer
+from .models import PhotoGallery, PhotoLike, FavoriteLocation
+from .serializers import PhotoGallerySerializer, PhotoLikeSerializer, FavoriteLocationSerializer
 
 
 class PhotoGalleryViewSet(viewsets.ModelViewSet):
@@ -223,3 +223,92 @@ class PublicPhotoViewSet(viewsets.ReadOnlyModelViewSet):
             'total_photos': queryset.count(),
             'data': serialized_groups
         })
+
+class FavoriteLocationViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing favorite destinations/locations.
+    
+    Endpoints:
+    - GET /api/favorite-locations/ - List user's favorite locations
+    - POST /api/favorite-locations/ - Add a favorite location
+    - DELETE /api/favorite-locations/{id}/ - Remove a favorite location
+    - POST /api/favorite-locations/toggle/ - Toggle favorite location
+    - GET /api/favorite-locations/check/ - Check if location is favorited
+    """
+    serializer_class = FavoriteLocationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Filter favorites for the authenticated user only"""
+        return FavoriteLocation.objects.filter(user=self.request.user).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        """Automatically set the user to the current logged-in user"""
+        serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['post'])
+    def toggle(self, request):
+        """
+        Toggle favorite location.
+        POST /api/favorite-locations/toggle/
+        
+        Request body:
+        {
+            "location": "Kathmandu"
+        }
+        """
+        location = request.data.get('location')
+        
+        if not location:
+            return Response(
+                {'error': 'location is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Try to find and delete existing favorite
+            favorite = FavoriteLocation.objects.get(
+                user=request.user,
+                location=location
+            )
+            favorite.delete()
+            return Response({
+                'is_favorited': False,
+                'location': location,
+                'message': 'Removed from favorites'
+            }, status=status.HTTP_200_OK)
+        except FavoriteLocation.DoesNotExist:
+            # Create new favorite
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(user=request.user)
+            return Response({
+                'is_favorited': True,
+                'location': location,
+                'message': 'Added to favorites',
+                'data': serializer.data
+            }, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'])
+    def check(self, request):
+        """
+        Check if a location is in user's favorites.
+        GET /api/favorite-locations/check/?location=Kathmandu
+        """
+        location = request.query_params.get('location')
+        
+        if not location:
+            return Response(
+                {'error': 'location is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        is_favorited = FavoriteLocation.objects.filter(
+            user=request.user,
+            location=location
+        ).exists()
+        
+        return Response({
+            'location': location,
+            'is_favorited': is_favorited
+        }, status=status.HTTP_200_OK)

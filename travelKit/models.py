@@ -81,3 +81,38 @@ class UserPersonalizedTravelKit(models.Model):
         return f"{self.user.email} - {self.location.name if self.location else 'No Location'}"
 
 
+class FavoriteTravelKit(models.Model):
+    """
+    Model to track user's favorite TravelKit items and kits.
+    Users can favorite individual items or complete travel kits for their wishlist.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favorite_travel_kits')
+    travel_kit = models.ForeignKey(TravelKit, on_delete=models.CASCADE, related_name='favorited_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'travel_kit')
+        ordering = ['-created_at']
+        verbose_name = 'Favorite Travel Kit'
+        verbose_name_plural = 'Favorite Travel Kits'
+
+    def __str__(self):
+        return f"{self.user.email} - {self.travel_kit.name}"
+
+
+class FavoriteTravelKitItem(models.Model):
+    """
+    Model to track user's favorite TravelKit items for wishlist/shopping purposes.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favorite_items')
+    item = models.ForeignKey(TravelKitItem, on_delete=models.CASCADE, related_name='favorited_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'item')
+        ordering = ['-created_at']
+        verbose_name = 'Favorite Travel Kit Item'
+        verbose_name_plural = 'Favorite Travel Kit Items'
+
+    def __str__(self):
+        return f"{self.user.email} - {self.item.name}"
