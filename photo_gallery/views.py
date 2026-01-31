@@ -224,6 +224,24 @@ class PublicPhotoViewSet(viewsets.ReadOnlyModelViewSet):
             'data': serialized_groups
         })
 
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def like(self, request, pk=None):
+        """
+        POST /api/photos/public/{id}/like/
+        Like/unlike a public photo (toggle)
+        Requires authentication.
+        """
+        photo = self.get_object()
+        user = request.user
+        
+        try:
+            like = PhotoLike.objects.get(photo=photo, user=user)
+            like.delete()
+            return Response({'status': 'success', 'message': 'Photo unliked', 'is_liked': False, 'likes_count': photo.likes_count})
+        except PhotoLike.DoesNotExist:
+            PhotoLike.objects.create(photo=photo, user=user)
+            return Response({'status': 'success', 'message': 'Photo liked', 'is_liked': True, 'likes_count': photo.likes_count})
+
 class FavoriteLocationViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing favorite destinations/locations.
