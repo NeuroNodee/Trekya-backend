@@ -24,6 +24,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 # Google OAuth imports
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.facebook.views import FacebookOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
 
@@ -49,6 +50,15 @@ class GoogleLogin(SocialLoginView):
     """
     adapter_class = GoogleOAuth2Adapter
     client_class = GoogleOAuth2Client
+    callback_url = "http://localhost:3000/login"
+
+class FacebookLogin(SocialLoginView):
+    """
+    API endpoint for Facebook OAuth login
+    POST /api/auth/facebook/
+    """
+    adapter_class = FacebookOAuth2Adapter
+    client_class = GoogleOAuth2Client # Reuse the same client class that fixes positional args
     callback_url = "http://localhost:3000/login"
 
 

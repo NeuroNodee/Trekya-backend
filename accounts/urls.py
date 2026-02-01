@@ -10,6 +10,7 @@ from .views import (
     send_otpV2,
     verify_otp,
     GoogleLogin,
+    FacebookLogin,
 )
 
 urlpatterns = [
@@ -18,6 +19,7 @@ urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('google/', GoogleLogin.as_view(), name='google_login'),
+    path('facebook/', FacebookLogin.as_view(), name='facebook_login'),
     
     # Token management
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
