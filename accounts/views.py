@@ -22,8 +22,34 @@ import random
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 
+# Google OAuth imports
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from dj_rest_auth.registration.views import SocialLoginView
+
+class GoogleOAuth2Client(OAuth2Client):
+    """
+    Custom OAuth2Client to handle incompatibility between dj-rest-auth 7.0.1 
+    and django-allauth 0.65+. allauth removed 'scope' from __init__ positional arguments.
+    """
+    def __init__(self, *args, **kwargs):
+        # dj-rest-auth 7.0.1 passes 'scope' as 7th positional argument
+        if len(args) > 6:
+            args = list(args)
+            args.pop(6)  # Remove 'scope' positional argument
+        super().__init__(*args, **kwargs)
 
 User = get_user_model()
+
+
+class GoogleLogin(SocialLoginView):
+    """
+    API endpoint for Google OAuth login
+    POST /api/auth/google/
+    """
+    adapter_class = GoogleOAuth2Adapter
+    client_class = GoogleOAuth2Client
+    callback_url = "http://localhost:3000/login"
 
 
 class RegisterView(generics.CreateAPIView):

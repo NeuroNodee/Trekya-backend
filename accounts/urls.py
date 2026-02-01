@@ -9,6 +9,7 @@ from .views import (
     send_otp,
     send_otpV2,
     verify_otp,
+    GoogleLogin,
 )
 
 urlpatterns = [
@@ -16,6 +17,7 @@ urlpatterns = [
     path('signup/', RegisterView.as_view(), name='signup'),
     path('login/', LoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
+    path('google/', GoogleLogin.as_view(), name='google_login'),
     
     # Token management
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
