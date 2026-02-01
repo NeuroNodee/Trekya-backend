@@ -1,10 +1,14 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Count, Q
+from django.shortcuts import get_object_or_404
+from django.contrib.auth import get_user_model
 from .models import PhotoGallery, PhotoLike, FavoriteLocation
 from .serializers import PhotoGallerySerializer, PhotoLikeSerializer, FavoriteLocationSerializer
+
+User = get_user_model()
 
 
 class PhotoGalleryViewSet(viewsets.ModelViewSet):
@@ -88,9 +92,13 @@ class PhotoGalleryViewSet(viewsets.ModelViewSet):
         try:
             like = PhotoLike.objects.get(photo=photo, user=user)
             like.delete()
+            # Refresh photo to get updated likes_count
+            photo.refresh_from_db()
             return Response({'status': 'success', 'message': 'Photo unliked', 'is_liked': False, 'likes_count': photo.likes_count})
         except PhotoLike.DoesNotExist:
             PhotoLike.objects.create(photo=photo, user=user)
+            # Refresh photo to get updated likes_count
+            photo.refresh_from_db()
             return Response({'status': 'success', 'message': 'Photo liked', 'is_liked': True, 'likes_count': photo.likes_count})
 
 
@@ -189,6 +197,49 @@ class PublicPhotoViewSet(viewsets.ReadOnlyModelViewSet):
         })
 
     @action(detail=False, methods=['get'])
+    def trending(self, request):
+        """
+        GET /api/photos/public/trending/
+        Returns public photos sorted by date (newest first).
+        Can be filtered by location using ?location=LocationName
+        """
+        queryset = self.get_queryset().order_by('-uploaded_at')
+        
+        # Filter by location if provided
+        location = request.query_params.get('location')
+        if location:
+            queryset = queryset.filter(location=location)
+        
+        # Pagination support
+        page = request.query_params.get('page', 1)
+        limit = request.query_params.get('limit', 12)
+        
+        try:
+            page = int(page)
+            limit = int(limit)
+        except ValueError:
+            page = 1
+            limit = 12
+        
+        total_count = queryset.count()
+        total_pages = (total_count + limit - 1) // limit
+        
+        start = (page - 1) * limit
+        end = start + limit
+        paginated_queryset = queryset[start:end]
+        
+        serializer = self.get_serializer(paginated_queryset, many=True)
+        return Response({
+            'status': 'success',
+            'count': total_count,
+            'page': page,
+            'limit': limit,
+            'pages': total_pages,
+            'location': location or 'all',
+            'data': serializer.data
+        })
+
+    @action(detail=False, methods=['get'])
     def grouped(self, request):
         """
         GET /api/photos/public/grouped/
@@ -237,9 +288,13 @@ class PublicPhotoViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             like = PhotoLike.objects.get(photo=photo, user=user)
             like.delete()
+            # Refresh photo to get updated likes_count
+            photo.refresh_from_db()
             return Response({'status': 'success', 'message': 'Photo unliked', 'is_liked': False, 'likes_count': photo.likes_count})
         except PhotoLike.DoesNotExist:
             PhotoLike.objects.create(photo=photo, user=user)
+            # Refresh photo to get updated likes_count
+            photo.refresh_from_db()
             return Response({'status': 'success', 'message': 'Photo liked', 'is_liked': True, 'likes_count': photo.likes_count})
 
 class FavoriteLocationViewSet(viewsets.ModelViewSet):
@@ -279,7 +334,15 @@ class FavoriteLocationViewSet(viewsets.ModelViewSet):
         
         if not location:
             return Response(
-                {'error': 'location is required'},
+                {'status': 'error', 'error': 'location is required', 'valid_locations': [choice[0] for choice in FavoriteLocation.LOCATION_CHOICES]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate location is in LOCATION_CHOICES
+        valid_locations = [choice[0] for choice in FavoriteLocation.LOCATION_CHOICES]
+        if location not in valid_locations:
+            return Response(
+                {'status': 'error', 'error': f'Invalid location. Must be one of: {valid_locations}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -291,21 +354,29 @@ class FavoriteLocationViewSet(viewsets.ModelViewSet):
             )
             favorite.delete()
             return Response({
+                'status': 'success',
                 'is_favorited': False,
                 'location': location,
                 'message': 'Removed from favorites'
             }, status=status.HTTP_200_OK)
         except FavoriteLocation.DoesNotExist:
             # Create new favorite
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            serializer.save(user=request.user)
-            return Response({
-                'is_favorited': True,
-                'location': location,
-                'message': 'Added to favorites',
-                'data': serializer.data
-            }, status=status.HTTP_201_CREATED)
+            try:
+                FavoriteLocation.objects.create(
+                    user=request.user,
+                    location=location
+                )
+                return Response({
+                    'status': 'success',
+                    'is_favorited': True,
+                    'location': location,
+                    'message': 'Added to favorites'
+                }, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({
+                    'status': 'error',
+                    'error': f'Error adding favorite: {str(e)}'
+                }, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'])
     def check(self, request):
@@ -317,7 +388,7 @@ class FavoriteLocationViewSet(viewsets.ModelViewSet):
         
         if not location:
             return Response(
-                {'error': 'location is required'},
+                {'status': 'error', 'error': 'location is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -327,6 +398,85 @@ class FavoriteLocationViewSet(viewsets.ModelViewSet):
         ).exists()
         
         return Response({
+            'status': 'success',
             'location': location,
             'is_favorited': is_favorited
         }, status=status.HTTP_200_OK)
+
+
+# =====================================================
+# USER-SPECIFIC PHOTO GALLERY ENDPOINT (AS PER SPEC)
+# =====================================================
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def user_photo_gallery(request, user_id):
+    """
+    GET /api/photo-gallery/<user_id>/
+    
+    Returns list of photos for a specific user.
+    This endpoint matches the requirement specification exactly:
+    - Accepts user_id parameter
+    - Returns list of photos with image URL and location
+    - Returns empty list if no photos are found
+    - Handles invalid user_id gracefully
+    
+    Response format:
+    {
+        "status": "success",
+        "message": "Photos retrieved successfully",
+        "count": 5,
+        "user_id": 1,
+        "data": [
+            {
+                "id": 1,
+                "image_url": "http://...",
+                "location": "Kathmandu",
+                "title": "...",
+                "uploaded_at": "..."
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        # Validate that user_id is a valid integer
+        try:
+            user_id = int(user_id)
+        except (ValueError, TypeError):
+            return Response({
+                'status': 'error',
+                'message': 'Invalid user_id. Must be an integer.',
+                'count': 0,
+                'data': []
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if user exists
+        user = get_object_or_404(User, id=user_id)
+        
+        # Get all photos for this user (only public photos for non-authenticated users)
+        if request.user.is_authenticated and request.user.id == user_id:
+            # Authenticated users can see all their own photos
+            photos = PhotoGallery.objects.filter(user=user).select_related('user').order_by('-uploaded_at')
+        else:
+            # Non-authenticated users or other authenticated users see only public photos
+            photos = PhotoGallery.objects.filter(user=user, is_public=True).select_related('user').order_by('-uploaded_at')
+        
+        # Serialize the photos
+        serializer = PhotoGallerySerializer(photos, many=True, context={'request': request})
+        
+        return Response({
+            'status': 'success',
+            'message': 'Photos retrieved successfully' if photos.exists() else 'No photos found for this user',
+            'count': photos.count(),
+            'user_id': user_id,
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': f'Error retrieving photos: {str(e)}',
+            'count': 0,
+            'data': []
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
