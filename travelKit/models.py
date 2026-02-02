@@ -10,7 +10,7 @@ class Location(models.Model):
     """
     Location model to store location information
     """
-    name = models.CharField(max_length=100, db_index=True)
+    name = models.CharField(max_length=100, db_index=True, unique=True)
     country = models.CharField(max_length=100, blank=True, default="Nepal")
 
     def __str__(self):
@@ -68,6 +68,13 @@ class UserPersonalizedTravelKit(models.Model):
     """
     UserPersonalizedTravelKit model to store user's personalized travel kit information: user would select from recommended and extra items.
     """
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'location'],
+                name='unique_user_location_travelkit'
+            )
+        ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="personal_travel_kits")
     location = models.ForeignKey("Location", on_delete=models.SET_NULL, null=True, blank=True)
     

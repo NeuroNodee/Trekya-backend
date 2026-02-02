@@ -92,16 +92,22 @@ def createUserTravelKit(request):
         return Response({ "message": "Location and items are required" })
     
     try:
-        user_travel_kit = UserPersonalizedTravelKit.objects.create(
+        user_travel_kit, created = UserPersonalizedTravelKit.objects.update_or_create(
             user=request.user,
-            location=location,
-            selected_items=items,
-            is_confirmed=True,
-            confirmed_at=timezone.now()
+            location=Location.objects.get(name=location),
+            
+            defaults={
+                'selected_items': items,
+                'is_confirmed': True,
+                'confirmed_at': timezone.now(),
+            }
         )
+        if created:
+            return Response({ "message": "User travel kit created successfully" })
+        else:
+            return Response({ "message": "User travel kit updated successfully" })
     except Exception as e:
         return Response({ "message": str(e) })
-    return Response({ "message": "User travel kit created successfully" })
 
     
 
