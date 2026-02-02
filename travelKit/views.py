@@ -1,11 +1,13 @@
 from django.shortcuts import render
-from .models import Location, TravelKitItem, TravelKit
+from .models import Location, TravelKitItem, TravelKit, UserPersonalizedTravelKit
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import permission_classes
-
+from django.utils import timezone
+from rest_framework.permissions import IsAuthenticated
 # Create your views here.
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def getAllLocation(request):
@@ -79,5 +81,28 @@ def getTravelKitItemsByName(request):
         },
         status=200
     )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def createUserTravelKit(request):
+    """Create user travel kit"""
+    location = request.data.get('location')
+    items = request.data.get('items')
+    if not location or not items:
+        return Response({ "message": "Location and items are required" })
+    
+    try:
+        user_travel_kit = UserPersonalizedTravelKit.objects.create(
+            user=request.user,
+            location=location,
+            selected_items=items,
+            is_confirmed=True,
+            confirmed_at=timezone.now()
+        )
+    except Exception as e:
+        return Response({ "message": str(e) })
+    return Response({ "message": "User travel kit created successfully" })
+
+    
 
     

@@ -8,4 +8,5 @@ urlpatterns = [
     path('TravelKitInfo/', views.getTravelKitInfo, name='getTravelKitInfo'),
     path('TravelKitItemsByLocation/', views.getTravelKitItemsByLocation, name='getTravelKitItemsByLocation'),
     path('TravelKitItemsByName/', views.getTravelKitItemsByName, name='getTravelKitItemsByName'),
+    path('CreateUserTravelKit/', views.createUserTravelKit, name='createUserTravelKit'),
 ]
