@@ -10,5 +10,5 @@ urlpatterns = [
     path('TravelKitItemsByName/', views.getTravelKitItemsByName, name='getTravelKitItemsByName'),
     path('CreateUserTravelKit/', views.createUserTravelKit, name='createUserTravelKit'),
     path('GetUserTravelKit/', views.getUserTravelKit, name='getUserTravelKit'),
-    path('DeleteUserTravelKit/', views.deleteUserTravelKit, name='deleteUserTravelKit'),
+    path('DeleteUserTravelKit/<int:kit_id>/', views.deleteUserTravelKit, name='deleteUserTravelKit'),
 ]

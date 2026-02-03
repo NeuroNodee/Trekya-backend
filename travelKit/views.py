@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.decorators import permission_classes
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
 # Create your views here.
 
 @api_view(['GET'])
@@ -127,21 +128,11 @@ def getUserTravelKit(request):
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def deleteUserTravelKit(request, kit_id):
-    """
-    Delete a specific user personalized travel kit by its ID.
-    Only the owner (authenticated user) can delete it.
-    """
-    # Get the kit or return 404 if not found
     travel_kit = get_object_or_404(
         UserPersonalizedTravelKit,
         id=kit_id,
-        user=request.user   # ← important security: only own kits
+        user=request.user
     )
-
-    # Optional: you can add extra check (e.g. not confirmed yet, etc.)
-    # if not travel_kit.is_confirmed:
-    #     return Response({"message": "Only confirmed kits can be deleted"}, status=400)
-
     travel_kit.delete()
 
     return Response(
