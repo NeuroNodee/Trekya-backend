@@ -1,11 +1,13 @@
 from django.shortcuts import render
-from .models import Location, TravelKitItem, TravelKit
+from .models import Location, TravelKitItem, TravelKit, UserPersonalizedTravelKit
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import permission_classes
-
+from django.utils import timezone
+from rest_framework.permissions import IsAuthenticated
 # Create your views here.
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def getAllLocation(request):
@@ -80,4 +82,73 @@ def getTravelKitItemsByName(request):
         status=200
     )
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def createUserTravelKit(request):
+    """Create user travel kit"""
+    location = request.data.get('location')
+    items = request.data.get('items')
+    if not location or not items:
+        return Response({ "message": "Location and items are required" })
     
+    try:
+        user_travel_kit, created = UserPersonalizedTravelKit.objects.update_or_create(
+            user=request.user,
+            location=Location.objects.get(name=location),
+            
+            defaults={
+                'selected_items': items,
+                'is_confirmed': True,
+                'confirmed_at': timezone.now(),
+            }
+        )
+        if created:
+            return Response({ "message": "User travel kit created successfully" })
+        else:
+            return Response({ "message": "User travel kit updated successfully" })
+    except Exception as e:
+        return Response({ "message": str(e) })
+
+    
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def getUserTravelKit(request):
+    """Get user travel kit"""
+    user_travel_kit = UserPersonalizedTravelKit.objects.filter(user=request.user)
+    data = user_travel_kit.values(
+        "id",
+        "location__name",
+        "selected_items",
+    )
+    if not user_travel_kit:
+        return Response({ "message": "User travel kit not found", "data": [] })
+    return Response({ "message": "Success", "data": data})
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def deleteUserTravelKit(request, kit_id):
+    """
+    Delete a specific user personalized travel kit by its ID.
+    Only the owner (authenticated user) can delete it.
+    """
+    # Get the kit or return 404 if not found
+    travel_kit = get_object_or_404(
+        UserPersonalizedTravelKit,
+        id=kit_id,
+        user=request.user   # ← important security: only own kits
+    )
+
+    # Optional: you can add extra check (e.g. not confirmed yet, etc.)
+    # if not travel_kit.is_confirmed:
+    #     return Response({"message": "Only confirmed kits can be deleted"}, status=400)
+
+    travel_kit.delete()
+
+    return Response(
+        {
+            "message": "Travel kit deleted successfully",
+            "deleted_kit_id": kit_id,
+            "location": travel_kit.location.name if travel_kit.location else None
+        },
+        status=200
+    )
