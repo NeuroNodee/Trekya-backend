@@ -110,5 +110,45 @@ def createUserTravelKit(request):
         return Response({ "message": str(e) })
 
     
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def getUserTravelKit(request):
+    """Get user travel kit"""
+    user_travel_kit = UserPersonalizedTravelKit.objects.filter(user=request.user)
+    data = user_travel_kit.values(
+        "id",
+        "location__name",
+        "selected_items",
+    )
+    if not user_travel_kit:
+        return Response({ "message": "User travel kit not found", "data": [] })
+    return Response({ "message": "Success", "data": data})
 
-    
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def deleteUserTravelKit(request, kit_id):
+    """
+    Delete a specific user personalized travel kit by its ID.
+    Only the owner (authenticated user) can delete it.
+    """
+    # Get the kit or return 404 if not found
+    travel_kit = get_object_or_404(
+        UserPersonalizedTravelKit,
+        id=kit_id,
+        user=request.user   # ← important security: only own kits
+    )
+
+    # Optional: you can add extra check (e.g. not confirmed yet, etc.)
+    # if not travel_kit.is_confirmed:
+    #     return Response({"message": "Only confirmed kits can be deleted"}, status=400)
+
+    travel_kit.delete()
+
+    return Response(
+        {
+            "message": "Travel kit deleted successfully",
+            "deleted_kit_id": kit_id,
+            "location": travel_kit.location.name if travel_kit.location else None
+        },
+        status=200
+    )
