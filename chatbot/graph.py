@@ -1,201 +1,200 @@
-from typing import TypedDict, List
-from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
+from typing import Optional
 from langgraph.graph import StateGraph, END
-import re
+from langgraph.graph import MessagesState
+from langgraph.checkpoint.memory import MemorySaver
+
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from .llm import llm
 from .rag import retriever
-from .tools import wikipedia_tool, tavily_search,weather_tool, nepali_news_tool
+from .tools import (
+    wikipedia_tool,
+    tavily_search,
+    weather_tool,
+    nepali_news_tool,
+)
 from .models import FavoriteDestination
 
 
-class AgentState(TypedDict):
-    messages: List[BaseMessage]
-    intent: str | None
-    metadata: dict | None
+# =========================
+# STATE
+# =========================
+class AgentState(MessagesState):
+    intent: str
+    user_name: Optional[str] = None
 
 
-# ---------- INTENT NODE ----------
+# =========================
+# SYSTEM PROMPT
+# =========================
+SYSTEM_TREKKA = SystemMessage(
+    content=(
+        "You are Trekka, a friendly and professional AI travel assistant specialized in Nepal. "
+        "You maintain a natural conversational flow and remember previous messages. "
+        "Do not reintroduce yourself unless the user explicitly asks who you are. "
+        "Respond warmly, clearly, and professionally. "
+        "If the user refers to earlier parts of the conversation, respond consistently. "
+        "Do NOT use Markdown formatting such as **bold**, *italic*, or any special symbols. "
+        "When listing items or instructions, always use numbered points like: "
+        "1) First point\n2) Second point\n3) Third point, and so on. "
+        "Always respond in plain, readable text suitable for chat display."
+    )
+)
+
+
+
+# =========================
+# INTENT NODE
+# =========================
 def intent_node(state: AgentState):
     text = state["messages"][-1].content.lower()
 
     if "save" in text:
         state["intent"] = "save"
-    elif "wikipedia" in text:
-        state["intent"] = "wiki"
     elif "weather" in text:
         state["intent"] = "weather"
-    elif "news" in text or "update" in text:
+    elif "news" in text:
         state["intent"] = "nepali_news"
-    elif "news" in text or "search" in text:
+    elif "wikipedia" in text:
+        state["intent"] = "wiki"
+    elif "search" in text:
         state["intent"] = "tavily"
-    elif "info" in text or "about" in text:
+    elif any(k in text for k in ["local information"]):
         state["intent"] = "rag"
     else:
         state["intent"] = "chat"
 
-    print(f"🧭 [INTENT] → {state['intent']}")
+        # Debugging
+    print(f"[DEBUG] User text: {text} -> Intent: {state['intent']}")
+
     return state
 
 
-# ---------- CHAT ----------
+# =========================
+# CHAT NODE
+# =========================
 def chat_node(state: AgentState):
-    print("💬 [NODE] Chat")
-    res = llm.invoke(state["messages"])
-    state["messages"].append(res)
+    print("[DEBUG] Entering CHAT node")
+    response = llm.invoke(state["messages"])
+    state["messages"].append(response)
     return state
 
 
-# ---------- RAG ----------
+# =========================
+# RAG NODE
+# =========================
 def rag_node(state: AgentState):
-    print("📚 [NODE] RAG")
-
+    print("[DEBUG] Entering rag node")
     query = state["messages"][-1].content
-    print("🔍 Query:", query)
-
     docs = retriever.invoke(query)
-    print(f"📄 Retrieved {len(docs)} docs")
 
     context = "\n\n".join(d.page_content for d in docs)
 
-    res = llm.invoke(
-        f"Answer using the context below.\n\n{context}\n\nQuestion: {query}"
+    response = llm.invoke(
+        state["messages"] + [
+            SystemMessage(content="Use the context below to answer naturally."),
+            HumanMessage(content=f"Context:\n{context}\n\nQuestion:\n{query}")
+        ]
     )
 
-    state["messages"].append(res)
-    print("✅ [NODE] RAG done")
+    state["messages"].append(response)
     return state
 
 
-# ---------- WIKI ----------
+# =========================
+# WIKI NODE
+# =========================
 def wiki_node(state: AgentState):
-    print("🌐 [TOOL] Wikipedia")
+    print("[DEBUG] Entering wiki node")
     query = state["messages"][-1].content
     result = wikipedia_tool(query)
     state["messages"].append(AIMessage(content=result))
     return state
 
 
-# ---------- TAVILY ----------
+# =========================
+# SEARCH NODE
+# =========================
 def tavily_node(state: AgentState):
-    print("📰 [TOOL] Tavily Search")
+    print("[DEBUG] Entering tavily node")
     query = state["messages"][-1].content
     result = tavily_search(query)
     state["messages"].append(AIMessage(content=result))
     return state
 
 
+# =========================
+# WEATHER NODE
+# =========================
+def weather_node(state):
+    print("[DEBUG] Entering weather node")
+    user_text = state["messages"][-1].content
+    weather_result = weather_tool(user_text, days=3)
 
+    # Handle errors
+    if isinstance(weather_result, dict) and "error" in weather_result:
+        state["messages"].append(AIMessage(content=f"Sorry, {weather_result['error']}"))
+        return state
 
+    # If forecast is long, summarize using LLM with plain text instructions
+    if len(weather_result.splitlines()) > 3:
+        summary_prompt = f"Rephrase this weather forecast naturally and clearly in plain text, suitable for chat. Do NOT add any quotes:\n{weather_result}"
 
-# ---------- SAVE ----------
-def save_node(state: AgentState):
-    print("💾 [NODE] Save Destination")
-    text = state["messages"][-1].content
-    dest = text.replace("save", "").strip()
+        summary = llm.invoke([HumanMessage(content=summary_prompt)])
+        state["messages"].append(summary)
+    else:
+        state["messages"].append(AIMessage(content=weather_result))
 
-    FavoriteDestination.objects.create(
-        name="User",
-        destination=dest
-    )
-
-    state["messages"].append(
-        AIMessage(content="Destination saved successfully ✅")
-    )
     return state
 
-def extract_city(text: str):
-    prompt = (
-        "Extract the city name from the sentence below.\n"
-        "Fix spelling if needed.\n"
-        "Return ONLY the city name with country if known.\n\n"
-        f"Sentence: {text}"
-    )
-    return llm.invoke(prompt).content.strip()
+# =========================
+# NEWS NODE
+# =========================
+def nepali_news_node(state: AgentState):
+    print("[DEBUG] Entering nepali news node")
+    articles = nepali_news_tool(state["messages"][-1].content)
 
-def weather_node(state: AgentState):
-    print("🌦 [TOOL] Weather")
-
-    user_text = state["messages"][-1].content
-
-    # Extract city using your LLM function
-    city = extract_city(user_text)
-    if not city:
-        city = "Kathmandu,NP"  # fallback default
-
-    # Determine number of days to fetch
-    user_text_lower = user_text.lower()
-    if "today" in user_text_lower:
-        days = 1
-    elif "tomorrow" in user_text_lower:
-        days = 2  # today + tomorrow
-    elif "next" in user_text_lower or "few days" in user_text_lower:
-        days = 3  # max 3 days
-    else:
-        days = 1
-
-    # Ensure country code if not already present
-    if "," not in city:
-        city = f"{city},NP"
-
-    # Fetch weather
-    weather_data = weather_tool(city, days=days)
-
-    if "error" in weather_data:
+    if not articles:
         state["messages"].append(
-            AIMessage(content=f"❌ Weather error: {weather_data['error']}")
+            AIMessage(content="I couldn’t find recent Nepali news right now.")
         )
         return state
 
-    # Build prompt for LLM to format nicely
-    forecast_summary = weather_data["forecast"]  # list of dicts
-    prompt_text = (
-        f"You are a friendly weather assistant.\n"
-        f"User asked: {user_text}\n"
-        f"City: {weather_data['city']}\n"
-        f"Country: {weather_data['country']}\n"
-        f"Weather forecast data: {forecast_summary}\n\n"
-        f"Format the response in a ChatGPT-style UI:\n"
-        f"- Bold the day/date\n"
-        f"- Add emojis for weather conditions\n"
-        f"- Include average temperature and main condition per day\n"
-        f"- Focus on requested day(s) first, summarize neatly"
+    response = llm.invoke(
+        state["messages"] + [
+            HumanMessage(content=f"Summarize these news articles clearly:\n{articles}")
+        ]
     )
 
-    # LLM formats the weather response
-    response = llm.invoke([HumanMessage(content=prompt_text)])
     state["messages"].append(response)
+    return state
 
+
+# =========================
+# SAVE NODE
+# =========================
+def save_node(state: AgentState):
+    print("[DEBUG] Entering save node")
+    text = state["messages"][-1].content
+    destination = text.replace("save", "").strip()
+
+    FavoriteDestination.objects.create(
+        name=state.get("user_name") or "User",
+        destination=destination
+    )
+
+    state["messages"].append(
+        AIMessage(content="Got it! I’ve saved that destination for you.")
+    )
     return state
 
 
 
 
-def nepali_news_node(state: AgentState):
-    print("📰 [TOOL] Nepali News")
-    query = state["messages"][-1].content
-    articles = nepali_news_tool(query)
 
-    if not articles:
-        state["messages"].append(AIMessage(content="❌ No recent Nepali news found."))
-        return state
-
-    prompt_text = (
-        "You are a friendly news assistant.\n"
-        "The user wants recent news from Nepal.\n"
-        "Please summarize the following articles in ChatGPT style:\n"
-        "- Bold the headline\n"
-        "- Add a one-line summary\n"
-        "- Include source\n"
-        "- Optional emoji (📰, ⚽️, 🎭)\n"
-        f"News data:\n{articles}"
-    )
-
-    response = llm.invoke([HumanMessage(content=prompt_text)])
-    state["messages"].append(response)
-    return state
-
-# ---------- GRAPH ----------
+# =========================
+# GRAPH
+# =========================
 graph = StateGraph(AgentState)
 
 graph.add_node("intent", intent_node)
@@ -203,8 +202,8 @@ graph.add_node("chat", chat_node)
 graph.add_node("rag", rag_node)
 graph.add_node("wiki", wiki_node)
 graph.add_node("tavily", tavily_node)
-graph.add_node("nepali_news", nepali_news_node)
 graph.add_node("weather", weather_node)
+graph.add_node("nepali_news", nepali_news_node)
 graph.add_node("save", save_node)
 
 graph.set_entry_point("intent")
@@ -217,13 +216,22 @@ graph.add_conditional_edges(
         "rag": "rag",
         "wiki": "wiki",
         "tavily": "tavily",
-        "save": "save",
         "weather": "weather",
         "nepali_news": "nepali_news",
+        "save": "save",
     }
 )
 
-for node in ["chat", "rag", "wiki", "tavily", "save", "weather", "nepali_news"]:
+for node in [
+    "chat",
+    "rag",
+    "wiki",
+    "tavily",
+    "weather",
+    "nepali_news",
+    "save",
+]:
     graph.add_edge(node, END)
 
-app = graph.compile()
+checkpointer = MemorySaver()
+app = graph.compile(checkpointer=checkpointer)
