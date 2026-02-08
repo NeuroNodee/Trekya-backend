@@ -12,5 +12,8 @@ urlpatterns = [
     path('AllTravelKitInfo/', views.getAllTravelKitInfo, name='getAllTravelKitInfo'),
     path('TravelKitInfo/', views.getTravelKitInfo, name='getTravelKitInfo'),
     path('TravelKitItemsByLocation/', views.getTravelKitItemsByLocation, name='getTravelKitItemsByLocation'),
-    path('', include(router.urls)),
+    path('TravelKitItemsByName/', views.getTravelKitItemsByName, name='getTravelKitItemsByName'),
+    path('CreateUserTravelKit/', views.createUserTravelKit, name='createUserTravelKit'),
+    path('GetUserTravelKit/', views.getUserTravelKit, name='getUserTravelKit'),
+    path('DeleteUserTravelKit/<int:kit_id>/', views.deleteUserTravelKit, name='deleteUserTravelKit'),
 ]

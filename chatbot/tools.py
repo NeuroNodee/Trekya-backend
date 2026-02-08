@@ -1,12 +1,10 @@
 import wikipedia
 import requests
+from .llm import llm
 from dotenv import load_dotenv
 import os
 
 from tavily import TavilyClient
-
-
-
 
 # Load .env file
 load_dotenv()
@@ -48,29 +46,27 @@ def tavily_search(query: str, max_results: int = 3):
 
 
 
+def weather_tool(user_text: str, days: int = 3):
+    """
+    Fetch weather forecast for a Nepali city mentioned in user_text.
+    Returns either a string forecast or a dict with "error".
+    """
+    if not OPENWEATHER_API_KEY:
+        return {"error": "Weather API key missing."}
 
-def weather_tool(city: str, days: int = 1):
-    """
-    Fetch weather forecast for the city.
-    days: 1=today, 2=tomorrow, 3=next 3 days max
-    Returns dict:
-        { "city": str, "country": str, "forecast": [ {date, avg_temp, condition}, ... ] }
-    """
+    # Step 1: Extract city name using LLM
+    prompt = f"Extract the city name from this text (Nepal only): '{user_text}'. Respond only with city name."
+    city_response = llm.invoke([{"role": "user", "content": prompt}])
+    city = city_response.content.strip()
+
+    if not city:
+        return {"error": "Could not detect city."}
+
+    # Step 2: Fetch weather from OpenWeatherMap
+    url = "https://api.openweathermap.org/data/2.5/forecast"
+    params = {"q": f"{city},NP", "appid": OPENWEATHER_API_KEY, "units": "metric"}
+
     try:
-        if not OPENWEATHER_API_KEY:
-            return {"error": "Weather API key missing."}
-
-        # Append country code for Nepali cities
-        if "," not in city:
-            city = f"{city},NP"
-
-        url = "https://api.openweathermap.org/data/2.5/forecast"
-        params = {
-            "q": city,
-            "appid": OPENWEATHER_API_KEY,
-            "units": "metric",
-        }
-
         res = requests.get(url, params=params)
         if res.status_code != 200:
             return {"error": res.json().get("message", "Unable to fetch weather.")}
@@ -78,40 +74,32 @@ def weather_tool(city: str, days: int = 1):
         data = res.json()
         forecast_list = data.get("list", [])
 
-        # Organize into days
+        # Step 3: Aggregate per day
         daily = {}
         for entry in forecast_list:
-            date_str = entry["dt_txt"].split(" ")[0]
-            if date_str not in daily:
-                daily[date_str] = {"temps": [], "conditions": []}
-            daily[date_str]["temps"].append(entry["main"]["temp"])
-            daily[date_str]["conditions"].append(entry["weather"][0]["description"])
+            date = entry["dt_txt"].split(" ")[0]
+            if date not in daily:
+                daily[date] = {"temps": [], "conds": []}
+            daily[date]["temps"].append(entry["main"]["temp"])
+            daily[date]["conds"].append(entry["weather"][0]["description"])
 
-        # Build forecast output
-        sorted_dates = sorted(daily.keys())
-        output = []
+        # Step 4: Build readable string
+        sorted_dates = sorted(daily.keys())[:days]
+        lines = []
         for i, date in enumerate(sorted_dates):
-            if i >= days:
-                break
             temps = daily[date]["temps"]
-            avg_temp = sum(temps) / len(temps)
-            conds = daily[date]["conditions"]
+            avg_temp = round(sum(temps) / len(temps), 1)
+            conds = daily[date]["conds"]
             main_condition = max(set(conds), key=conds.count)
-            output.append({
-                "date": date,
-                "avg_temp": round(avg_temp, 1),
-                "condition": main_condition
-            })
+            lines.append(f"{i+1}) Date: {date}, Avg Temp: {avg_temp}°C, Condition: {main_condition}")
 
-        return {
-            "city": data["city"]["name"],
-            "country": data["city"]["country"],
-            "forecast": output
-        }
+        if not lines:
+            return {"error": "No forecast data found."}
+
+        return f"Weather forecast for {data['city']['name']}, {data['city']['country']}:\n" + "\n".join(lines)
 
     except Exception as e:
-        return {"error": str(e)}
-    
+        return {"error": str(e)} 
 
 
     
