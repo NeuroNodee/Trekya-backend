@@ -1,10 +1,5 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 from . import views
-
-router = DefaultRouter()
-router.register(r'favorite-travel-kits', views.FavoriteTravelKitViewSet, basename='favorite-travel-kit')
-router.register(r'favorite-items', views.FavoriteTravelKitItemViewSet, basename='favorite-item')
 
 urlpatterns = [
     path('AllLocation/', views.getAllLocation, name='getAllLocation'),
