@@ -1,11 +1,6 @@
 from django.urls import path
 from . import views
 
-<<<<<<< HEAD
-
-
-=======
->>>>>>> 1ab970c17249c623a5224a94e889d3e61f3640fb
 urlpatterns = [
     path('AllLocation/', views.getAllLocation, name='getAllLocation'),
     path('AllTravelKitItems/', views.getAllTravelKitItems, name='getAllTravelKitItems'),

@@ -9,9 +9,6 @@ urlpatterns = [
     # Our custom auth endpoints (for email/password login)
     path('api/auth/', include('accounts.urls')),
     
-    # Photo Gallery endpoints
-    path('api/', include('photo_gallery.urls')),
-    
     # Social authentication endpoints (Google, Facebook OAuth callbacks)
     path('accounts/', include('allauth.urls')),
     path('api/',include('chatbot.urls')),

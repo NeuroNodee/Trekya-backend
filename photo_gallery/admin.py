@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import PhotoGallery, PhotoLike, FavoriteLocation
+from .models import PhotoGallery
 
 
 @admin.register(PhotoGallery)
@@ -17,7 +17,7 @@ class PhotoGalleryAdmin(admin.ModelAdmin):
             'fields': ('user', 'image', 'image_preview')
         }),
         ('Details', {
-            'fields': ('location', 'title', 'description', 'is_public')
+            'fields': ('location', 'title', 'description')
         }),
         ('Timestamps', {
             'fields': ('uploaded_at', 'updated_at'),
@@ -31,21 +31,3 @@ class PhotoGalleryAdmin(admin.ModelAdmin):
         return "No image"
 
     image_preview.short_description = 'Preview'
-
-
-@admin.register(PhotoLike)
-class PhotoLikeAdmin(admin.ModelAdmin):
-    """Admin interface for PhotoLike model."""
-    list_display = ('user', 'photo', 'created_at')
-    list_filter = ('created_at', 'user')
-    search_fields = ('user__email', 'photo__title')
-    readonly_fields = ('created_at',)
-
-
-@admin.register(FavoriteLocation)
-class FavoriteLocationAdmin(admin.ModelAdmin):
-    """Admin interface for FavoriteLocation model."""
-    list_display = ('user', 'location', 'created_at')
-    list_filter = ('location', 'created_at')
-    search_fields = ('user__email', 'location')
-    readonly_fields = ('created_at',)
