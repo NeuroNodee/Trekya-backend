@@ -174,23 +174,28 @@ class UserDetailView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def change_password(request):
-    user = request.user
-    old_password = request.data.get('old_password')
-    new_password = request.data.get('new_password')
-    
-    if not old_password or not new_password:
-        return Response({'error': 'Both old and new password are required'}, status=status.HTTP_400_BAD_REQUEST)
+class ChangePasswordView(APIView):
+    """
+    API endpoint to change user password
+    POST /api/auth/change-password/
+    """
+    permission_classes = [IsAuthenticated]
 
-    if not user.check_password(old_password):
-        return Response({'error': 'Incorrect old password'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    user.set_password(new_password)
-    user.save()
-    update_session_auth_hash(request, user)
-    return Response({'message': 'Password changed successfully'})
+    def post(self, request):
+        user = request.user
+        old_password = request.data.get('old_password')
+        new_password = request.data.get('new_password')
+        
+        if not old_password or not new_password:
+            return Response({'error': 'Both old and new password are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not user.check_password(old_password):
+            return Response({'error': 'Incorrect old password'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user.set_password(new_password)
+        user.save()
+        update_session_auth_hash(request, user)
+        return Response({'message': 'Password changed successfully'})
 
 
 User = get_user_model()

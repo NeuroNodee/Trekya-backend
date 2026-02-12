@@ -5,7 +5,7 @@ from .views import (
     LoginView,
     LogoutView,
     UserDetailView,
-    change_password,
+    ChangePasswordView,
     reset_password,
     send_otp,
     send_otpV2,
@@ -15,6 +15,9 @@ from .views import (
 )
 
 urlpatterns = [
+    # User management
+    path('change-password/', ChangePasswordView.as_view(), name='change-password'),
+    
     # Authentication endpoints
     path('signup/', RegisterView.as_view(), name='signup'),
     path('login/', LoginView.as_view(), name='login'),
@@ -27,7 +30,6 @@ urlpatterns = [
     
     # User management
     path('user/', UserDetailView.as_view(), name='user-detail'),
-    path('change-password/', change_password, name='change-password'),
     path('reset-password/', reset_password, name='reset-password'),
     path('send-otp/', send_otp, name='send-otp'),
     path('send-otpV2/', send_otpV2, name='send-otpV2'),
