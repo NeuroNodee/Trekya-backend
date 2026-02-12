@@ -6,14 +6,34 @@ from dj_rest_auth.registration.serializers import RegisterSerializer as BaseRegi
 
 User = get_user_model()
 
+class PasswordChangeSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, min_length=8)
+
+    def validate_old_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Old password is incorrect.")
+        return value
+
 class UserSerializer(serializers.ModelSerializer):
     """
     Serializer for User model - used for displaying user info
     """
+    remove_profile_picture = serializers.BooleanField(write_only=True, required=False, default=False)
+
     class Meta:
         model = User
-        fields = ('id', 'email', 'first_name', 'last_name', 'is_from_nepal', 'profile_picture', 'bio', 'date_joined')
+        fields = ('id', 'email', 'first_name', 'last_name', 'is_from_nepal', 'profile_picture', 'bio', 'date_joined', 'remove_profile_picture')
         read_only_fields = ('id', 'date_joined', 'email') # Email usually read-only unless we want to handle verification again
+
+    def update(self, instance, validated_data):
+        remove_pic = validated_data.pop('remove_profile_picture', False)
+        if remove_pic:
+            instance.profile_picture.delete(save=False)
+            instance.profile_picture = None
+        
+        return super().update(instance, validated_data)
 
 
 class RegisterSerializer(serializers.ModelSerializer):
