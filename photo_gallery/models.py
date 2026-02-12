@@ -135,6 +135,7 @@ class FavoriteLocation(models.Model):
         ('Dharan', 'Dharan'),
         ('Illam', 'Illam'),
         ('Lalitpur', 'Lalitpur'),
+        ('Api', 'Api'),
         ('Other', 'Other'),
     )
 
