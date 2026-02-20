@@ -1,6 +1,6 @@
 **Clone the repository**
 ```
-git clone https://github.com/NeuroNodee/T-R-E-K-K-A
+git clone https://github.com/NeuroNodee/Trekya-backend
 ```
 
 **Navigate to the project directory**
