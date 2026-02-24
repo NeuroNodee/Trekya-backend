@@ -3,3 +3,8 @@
 .vemv*
 .db.sqlite3
 media/profile_pics/
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.db
+*.log
