@@ -1,3 +1,5 @@
 .env*
 .venv*
 .vemv*
+.db.sqlite3
+media/profile_pics/
