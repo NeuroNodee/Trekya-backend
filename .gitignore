@@ -1,10 +1,17 @@
-.env*
-.venv*
-.vemv*
-.db.sqlite3
-media/profile_pics/
+# Python cache
 __pycache__/
 *.py[cod]
+
+# Django local database
 *.sqlite3
-*.db
-*.log
+
+# Virtual environment
+venv/
+
+# Media uploads
+media/profile_pics/
+
+# IDE/editor
+*.idea/
+*.vscode/
+.env*
