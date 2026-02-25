@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     'sherpa',
     'travelKit',
     'photo_gallery',
+    'notifications',
     
     # Third party apps
     'rest_framework',
