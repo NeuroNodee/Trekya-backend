@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django import forms
 from django.contrib.auth import get_user_model
-from .models import Notification
+from .models import Notification, User_activity_notification
 
 User = get_user_model()
 
@@ -48,3 +48,10 @@ class NotificationAdmin(admin.ModelAdmin):
     def display_users(self, obj):
         return ", ".join([user.email for user in obj.users.all()]) or "-"
     display_users.short_description = "Users"
+
+@admin.register(User_activity_notification)
+class User_activity_notificationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'action', 'message', 'created_at', 'is_read')
+    list_filter = ('action', 'is_read', 'created_at')
+    search_fields = ('message', 'user__email')
+    

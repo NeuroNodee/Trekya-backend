@@ -302,6 +302,8 @@ def remove_friend(request, user_id: int):
     other = get_object_or_404(User, pk=user_id, is_active=True)
     u1, u2 = sorted([request.user, other], key=lambda u: u.pk)
     deleted, _ = Friendship.objects.filter(user1=u1, user2=u2).delete()
+    delete_request1 = FriendRequest.objects.filter(sender=u1, receiver=u2).delete()
+    delete_request2 = FriendRequest.objects.filter(sender=u2, receiver=u1).delete()
     if not deleted:
         return json_err("You are not friends with this user.", 404)
     logger.info("Friendship removed: %s ↔ %s", request.user.pk, user_id)
