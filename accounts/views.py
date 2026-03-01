@@ -371,3 +371,16 @@ def verify_otp(request):
                 "success": False,
                 "message": "Invalid purpose"
         })
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def get_user_id_by_email(request):
+    email = request.data.get('email')
+    print(email)
+    if not email:
+        return Response({"success": False, "message": "Email is required"}, status=400)
+    user = User.objects.filter(email=email).first()
+    if not user:
+        return Response({"success": False, "message": "User not found"}, status=404)
+    return Response({"success": True, "user_id": user.id})

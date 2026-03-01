@@ -12,6 +12,7 @@ from .views import (
     verify_otp,
     GoogleLogin,
     FacebookLogin,
+    get_user_id_by_email,
 )
 
 urlpatterns = [
@@ -34,4 +35,5 @@ urlpatterns = [
     path('send-otp/', send_otp, name='send-otp'),
     path('send-otpV2/', send_otpV2, name='send-otpV2'),
     path('verify-otp/', verify_otp, name='verify-otp'),
+    path('get-user-id-by-email/', get_user_id_by_email, name='get-user-id-by-email'),
 ]

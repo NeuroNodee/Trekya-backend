@@ -3,6 +3,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from notifications import urls as notification_urls
+from friends import urls as friend_urls
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -19,4 +20,5 @@ urlpatterns = [
     path('sherpa/',include('sherpa.urls')),
     path('travelkit/',include('travelKit.urls')),
     path('notifications/', include(notification_urls)),
+    path('friends/', include(friend_urls)),
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

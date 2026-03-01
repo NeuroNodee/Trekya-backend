@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     'travelKit',
     'photo_gallery',
     'notifications',
+    'friends',
     
     # Third party apps
     'rest_framework',
