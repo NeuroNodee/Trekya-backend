@@ -59,6 +59,7 @@ def flexible_login_required(view_func):
 
                 user = User.objects.get(pk=int(token["user_id"]), is_active=True)
                 print("found user:", user)
+                request._cached_user = user
                 request.user = user
                 
             except Exception as exc:  # noqa: BLE001

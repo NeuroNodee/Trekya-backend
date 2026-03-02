@@ -5,6 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Notification, NotificationUser, User_activity_notification
 from django.utils import timezone
 
+from django.contrib.auth import get_user_model
+User = get_user_model()
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -54,13 +56,30 @@ def dismiss_notification(request, notification_id):
 @permission_classes([IsAuthenticated])
 def trigger_notification(request):
     try:
+        print("=== TRIGGER NOTIFICATION ===")
+        print("REQUEST DATA:", request.data)
+        
+        uploader_id = request.data.get('UploaderId')
+        print("UPLOADER ID:", uploader_id)
+        
+        if uploader_id and uploader_id != request.user.id:
+            uploader_user = User.objects.get(id=uploader_id)
+            User_activity_notification.objects.create(
+                user=uploader_user,
+                action=request.data['action'],
+                message=f"Your Post has been liked by " + request.user.first_name + " " + request.user.last_name
+            )
+
         User_activity_notification.objects.create(
             user=request.user,
             action=request.data['action'],
             message=request.data['message']
         )
+
     except Exception as e:
+        print("ERROR:", str(e))  # 👈 this will show the real error
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    
     return JsonResponse({'success': True})
 
 @api_view(['GET'])
@@ -83,3 +102,4 @@ def remove_user_activity_notification(request, notification_id):
         return JsonResponse({'success': False, 'message': 'Notification not found'}, status=404)
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
+

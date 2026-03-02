@@ -105,7 +105,7 @@ class PhotoLike(models.Model):
         verbose_name_plural = 'Photo Likes'
 
     def __str__(self):
-        return f"{self.user.username} liked {self.photo.id}"
+        return f"{self.user.email} liked {self.photo.id}"
 
 class FavoriteLocation(models.Model):
     """
