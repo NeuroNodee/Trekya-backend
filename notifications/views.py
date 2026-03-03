@@ -3,7 +3,9 @@ from django.http import JsonResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from .models import Notification, NotificationUser, User_activity_notification
+from friends.models import FriendRequest
 from django.utils import timezone
+from django.db.models import F
 
 from django.contrib.auth import get_user_model
 User = get_user_model()
@@ -17,9 +19,11 @@ def fetch_notifications(request):
     notifications = Notification.objects.filter(
         Q(notificationuser__user=user, notificationuser__is_dismissed=False) |
         Q(users__isnull=True , notificationuser__is_dismissed=False)
-    ).distinct().order_by('-created_at')
+    ).distinct().order_by('-created_at').annotate(
+    is_read=F('notificationuser__is_read')  # <-- pull from through table
+    )
 
-    data = list(notifications.values('id', 'message', 'status', 'created_at', 'latest'))
+    data = list(notifications.values('id', 'message', 'status', 'created_at', 'latest', 'is_read'))
     return JsonResponse({'notifications': data})
 
 
@@ -38,8 +42,6 @@ def dismiss_notification(request, notification_id):
         nu.dismissed_at = timezone.now()
         nu.save()
         
-        # Optional: call the model's own dismiss method
-        # nu.dismiss()   # if you prefer to keep logic in model
         
         return JsonResponse({'success': True})
         
@@ -103,3 +105,32 @@ def remove_user_activity_notification(request, notification_id):
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
 
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_all_notifications_read(request):
+    user = request.user
+    now = timezone.now()
+
+    
+    NotificationUser.objects.filter(
+        user=user,
+        is_read=False,
+        is_dismissed=False
+    ).update(is_read=True, read_at=now)
+
+    
+    User_activity_notification.objects.filter(
+        user=user,
+        is_read=False
+    ).update(is_read=True, read_at=now)
+
+    
+    FriendRequest.objects.filter(
+        receiver=user,
+        status=FriendRequest.Status.PENDING,
+        is_read=False
+    ).update(is_read=True, read_at=now)
+
+    return JsonResponse({"success": True})

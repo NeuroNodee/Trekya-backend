@@ -33,7 +33,9 @@ class NotificationUser(models.Model):
     """Tracks per-user state for each notification"""
     notification = models.ForeignKey(Notification, on_delete=models.CASCADE)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    is_read = models.BooleanField(default=False)
     is_dismissed = models.BooleanField(default=False)  # user closed it
+    read_at = models.DateTimeField(null=True, blank=True)
     dismissed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -57,6 +59,7 @@ class User_activity_notification(models.Model):
     message = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return self.user.email + "-" + self.action

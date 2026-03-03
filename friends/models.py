@@ -52,6 +52,8 @@ class FriendRequest(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         unique_together      = ("sender", "receiver")

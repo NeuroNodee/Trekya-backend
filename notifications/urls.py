@@ -7,4 +7,5 @@ urlpatterns = [
     path('trigger-notification/', views.trigger_notification, name='trigger-notification'),
     path('fetch-user-activity-notifications/', views.fetch_user_activity_notifications, name='fetch-user-activity-notifications'),
     path('remove-user-activity-notification/<int:notification_id>/', views.remove_user_activity_notification, name='remove-user-activity-notification'),
+    path('mark-all-notifications-read/', views.mark_all_notifications_read, name='mark-all-notifications-read'),
 ]
