@@ -10,6 +10,7 @@ venv/
 
 # Media uploads
 media/profile_pics/
+media/sherpa/
 
 # IDE/editor
 *.idea/
